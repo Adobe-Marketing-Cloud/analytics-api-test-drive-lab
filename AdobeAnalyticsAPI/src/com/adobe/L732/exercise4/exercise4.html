@@ -1,0 +1,178 @@
+<html>
+<head>
+    <title>Adobe Summit L732 - Exercise ?</title>
+    <script type="text/javascript" src="https://ajax.googleapis.com/ajax/libs/jquery/1.9.1/jquery.min.js"></script>
+     <script type="text/javascript" src="https://www.google.com/jsapi"></script>
+    <script type="text/javascript" src="marketing-cloud-javascript-sdk/wsse.js"></script>
+    <script type="text/javascript" src="marketing-cloud-javascript-sdk/marketing_cloud.js"></script>
+ 
+    <script type="text/javascript">
+    	google.load("visualization", "1.1", {packages:["calendar","line","corechart"]});
+    	
+    	var apiConfig = {
+    		"username":"api_labs:Demo Inc", // These credentials were disbled following the lab session, replace with your own
+    		"secret":"5b7b3a606e039b3de324aa8825db5713", // These credentials were disbled following the lab session, replace with your own
+    		"endpoint":"api.omniture.com"
+    	};
+    	
+    	var reportDescription = {
+    			
+    		"reportDescription":{
+    			"reportSuiteID":"[Enter the report suite ID]"
+    		}
+    	};
+    	
+    	var reportID = 0;
+    	
+    
+		/**
+		 *  First Step - Queue up the report
+		 */
+        $(document).ready(function() {
+        
+            $('#api-call-form').submit(function(e) {
+            
+            	$('#spinner').css('display','inline');
+            	$('#report_box').css('display','none');
+           		$('#ta_raw_result').val("");
+           		
+                MarketingCloud.makeRequest(
+                	apiConfig.username,
+                	apiConfig.secret,
+                	"Report.Queue", 
+                	reportDescription, 
+                	apiConfig.endpoint,
+					callback_ReportQueue
+                );
+                
+                return false;
+            });
+        });
+        
+        function callback_ReportQueue(e){
+        	var responseObj = jQuery.parseJSON(e.responseText);
+        	if(responseObj.reportID){
+        		reportID = responseObj.reportID;
+        		reportGet(reportID);
+        	}
+        }
+        
+        function callback_ReportGet(e){
+        	var responseObj = jQuery.parseJSON(e.responseText);
+        	if(responseObj.report){
+        		displayReport(responseObj);
+        	}else
+        		setTimeout(reportGet(reportID),4000);
+        		
+        }
+        
+      	/**
+      	 *  Second Step - Get the report
+         */        
+        function reportGet(reportID){
+			MarketingCloud.makeRequest(
+				apiConfig.username,
+				apiConfig.secret,
+				"Report.Get", 
+				{"reportID":reportID}, 
+				apiConfig.endpoint,
+				callback_ReportGet
+			);
+        }
+        
+        
+      	/**
+      	 *  Third Step - Present the report data
+         */         
+        function displayReport(reportResult){
+        	var dtr = window.convertReportToDataTableRows(reportResult);
+			drawChart(reportResult.report.metrics[0].name + " for " + reportResult.report.reportSuite.name , dtr);
+			$('#ta_raw_result').val(JSON.stringify(reportResult));
+        }
+        
+	   function convertReportToDataTableRows(reportResult){
+			var dtr = [], rd = reportResult.report.data;
+		
+			for(var i=0; i < rd.length; i++){
+				var dtrEntry = [ new Date(rd[i].year, (rd[i].month)-1, rd[i].day),  parseInt(rd[i].counts[0]) ];
+				dtr.push( dtrEntry );
+			}
+			window.dtr = dtr;
+			return dtr;
+	   }
+   
+	   function drawChartOnLoad(){
+			drawChart(null, null);
+	   }
+   
+	   function drawChart(chartTitle, dataTableRows) {
+	   		$('#report_box').css('display','inline');
+	   		$('#spinner').css('display','none');
+	   
+		   var dataTable = new google.visualization.DataTable();
+		   dataTable.addColumn('date','Date');
+		   dataTable.addColumn('number','Metric' );
+		   if(dataTableRows){
+				dataTable.addRows(dataTableRows);
+		   }else{
+			   dataTable.addRows([
+				  [ new Date(2012, 3, 13), 492 ],
+				  [ new Date(2013, 9, 30), 599 ]
+				]);
+			}
+
+			// Draw Calendar chart
+		   var calendarChart = new google.visualization.Calendar(document.getElementById('calendar_basic'));
+
+		   var calendarOptions = {
+			 title: chartTitle,
+			 height: 350,
+		   };
+
+		   calendarChart.draw(dataTable, calendarOptions);
+		   
+		   // Draw Line chart
+		   var lineChart = new google.visualization.LineChart(document.getElementById('line_basic'));
+
+
+		   var lineOptions = {
+			 title: chartTitle,
+			 height: 250,
+			 curveType: 'function',
+			 legend: { position: 'bottom' }
+
+		   };
+
+		   lineChart.draw(dataTable, lineOptions);
+		   
+	   }
+
+        
+    </script> 
+    
+</head>
+<body>
+    <form id="api-call-form">
+        <table>
+            <tr>
+                <td><input type="submit" value="Run Report" /></td>
+            </tr>
+        </table>
+    </form>
+
+	<img id="spinner" src="https://sc.omniture.com/spa/libs/resources/components/wait/wait_32.gif" style="display:none" />
+	
+	<div id="report_box"  style="display:none" >
+	
+		<div id="calendar_basic" style="width: 1000px; height: 250px;"></div>
+	
+		<div id="line_basic" style="width: 1000px; height: 350px;"></div>
+	
+		<textarea id="ta_raw_result" rows="16" cols="100"></textarea>
+	
+	</div>
+    
+
+</body>
+</html>
+<form>
